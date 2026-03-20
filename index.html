@@ -144,6 +144,21 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .cdpill.ok{background:var(--green-s);color:var(--green)}.cdpill.warn{background:var(--gold-s);color:var(--gold)}
 .cdpill.urgent{background:var(--red-s);color:var(--red)}.cdpill.today{background:var(--blue-s);color:var(--blue)}
 
+/* STEPS CARD */
+.steps-wrap{display:flex;flex-direction:column;gap:6px}
+.step-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:var(--rs);border:1px solid var(--bs);background:var(--bg);transition:all .15s;cursor:pointer}
+.step-item:hover{border-color:var(--br);background:var(--sf)}
+.step-item.done{opacity:.55;background:var(--s2)}
+.step-item.done .step-txt{text-decoration:line-through;color:var(--ink3)}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--s2);border:1.5px solid var(--bs);color:var(--ink3);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.step-item.done .step-num{background:var(--green);border-color:var(--green);color:#fff}
+.step-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--green);cursor:pointer;flex-shrink:0;margin-top:3px}
+.step-txt{font-size:12px;color:var(--ink2);line-height:1.45;flex:1}
+.step-prog{display:flex;align-items:center;gap:8px;padding:6px 0 2px}
+.step-prog-track{flex:1;height:4px;background:var(--s2);border-radius:2px;overflow:hidden}
+.step-prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .4s ease}
+.step-prog-lbl{font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+
 /* DL ROW */
 .dl-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink3)}
 .dl-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;background:var(--ink3)}
@@ -420,6 +435,37 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
         <div style="display:flex;flex-direction:column;gap:4px">
           <label class="chk" id="ci-sm1"><input type="checkbox" onchange="toggleChk('ci-sm1')"><span>1ª solicitação (dia 10)</span></label>
           <label class="chk" id="ci-sm2"><input type="checkbox" onchange="toggleChk('ci-sm2')"><span>2ª solicitação (dia 25)</span></label>
+        </div>
+      </div>
+      <div class="tc" data-m="all" style="grid-column:span 2">
+        <div class="tc-top"><div class="tc-title">Encaminhar faltas ao RH</div><span class="badge b-men">Mensal</span></div>
+        <div class="tc-desc">Após as formações, levantar os faltosos e encaminhar para o Instituto, escolas e RH conforme as etapas abaixo.</div>
+        <div class="resp-row"><span class="rt rt-all">Todos os ADMs</span></div>
+        <div class="step-prog">
+          <div class="step-prog-track"><div class="step-prog-fill" id="faltas-prog-fill" style="width:0%"></div></div>
+          <span class="step-prog-lbl" id="faltas-prog-lbl">0 / 4 etapas</span>
+        </div>
+        <div class="steps-wrap">
+          <label class="step-item" id="st-faltas1" onchange="toggleStep('st-faltas1','faltas')">
+            <input type="checkbox">
+            <div class="step-num">1</div>
+            <span class="step-txt">Encaminhar listagem de inscritos + listas de presença escaneadas ao Instituto</span>
+          </label>
+          <label class="step-item" id="st-faltas2" onchange="toggleStep('st-faltas2','faltas')">
+            <input type="checkbox">
+            <div class="step-num">2</div>
+            <span class="step-txt">Receber retorno do Instituto e conferir se há justificativas que anulem a falta de algum servidor</span>
+          </label>
+          <label class="step-item" id="st-faltas3" onchange="toggleStep('st-faltas3','faltas')">
+            <input type="checkbox">
+            <div class="step-num">3</div>
+            <span class="step-txt">Encaminhar listagem de faltosos para as escolas — para que anexem ao ponto</span>
+          </label>
+          <label class="step-item" id="st-faltas4" onchange="toggleStep('st-faltas4','faltas')">
+            <input type="checkbox">
+            <div class="step-num">4</div>
+            <span class="step-txt">Encaminhar listagem de faltosos para o RH — para ciência da listagem</span>
+          </label>
         </div>
       </div>
     </div>
@@ -704,10 +750,23 @@ document.addEventListener('DOMContentLoaded', function () {
   /* ── APLICAR CHKS AO DOM ── */
   function aplicarChks() {
     Object.keys(chks_state).forEach(function(id){
-      var row = ge(id); if(!row) return;
-      var inp = row.querySelector('input'); if(!inp) return;
+      var row = ge(id); if (!row) return;
+      var inp = row.querySelector('input'); if (!inp) return;
       inp.checked = chks_state[id];
-      row.classList.toggle('done', chks_state[id]);
+      // chk rows
+      if (row.classList.contains('chk')) row.classList.toggle('done', chks_state[id]);
+      // step items
+      if (row.classList.contains('step-item')) row.classList.toggle('done', chks_state[id]);
+    });
+    // recalcula barras de progresso dos grupos de steps
+    ['faltas'].forEach(function(grupo){
+      var all  = document.querySelectorAll('[id^="st-'+grupo+'"]');
+      var done = Array.prototype.filter.call(all, function(el){ return el.querySelector('input') && el.querySelector('input').checked; }).length;
+      var total = all.length;
+      var pct = total ? Math.round(done/total*100) : 0;
+      var fill = ge(grupo+'-prog-fill'); var lbl = ge(grupo+'-prog-lbl');
+      if (fill) fill.style.width = pct + '%';
+      if (lbl)  lbl.textContent  = done + ' / ' + total + ' etapas';
     });
   }
 
@@ -773,6 +832,24 @@ document.addEventListener('DOMContentLoaded', function () {
     var pct=total?Math.round(done/total*100):0;
     ge('prog-fill').style.width=pct+'%'; ge('prog-lbl').textContent=done+' / '+total+' concluídas'; ge('prog-pct').textContent=pct+'%';
   }
+
+  /* ── STEP CARDS (etapas numeradas) ── */
+  window.toggleStep = function(id, grupo) {
+    var item = ge(id); if (!item) return;
+    var checked = item.querySelector('input').checked;
+    item.classList.toggle('done', checked);
+    chks_state[id] = checked;
+    // atualiza barra de progresso do grupo
+    var all   = document.querySelectorAll('[id^="st-'+grupo+'"]');
+    var done  = Array.prototype.filter.call(all, function(el){ return el.querySelector('input').checked; }).length;
+    var total = all.length;
+    var pct   = total ? Math.round(done/total*100) : 0;
+    var fill  = ge(grupo+'-prog-fill');
+    var lbl   = ge(grupo+'-prog-lbl');
+    if (fill) fill.style.width = pct + '%';
+    if (lbl)  lbl.textContent  = done + ' / ' + total + ' etapas';
+    updateProgress(); save();
+  };
 
   /* ── CHECKLISTS ── */
   window.toggleChk = function(id){
