@@ -374,6 +374,20 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
       <button class="fbtn fa-rf"     data-m="rafael"     onclick="setFilter('rafael')"><span class="av av-rf">RF</span>Rafael</button>
     </div>
 
+    <!-- EXTRAS NO PAINEL PRINCIPAL -->
+    <div class="sec" id="sh-extras"><div class="sec-lbl">Tarefas extras</div></div>
+    <div class="extras-wrap" style="margin-bottom:32px">
+      <div class="ex-head"><span class="ex-head-ttl">Tarefas extras — atribuídas pela coordenação</span><span class="ex-head-ct" id="ex-ct">0 pendentes</span></div>
+      <div class="ex-form">
+        <div class="fg"><div class="flbl">Descrição da tarefa</div><input class="fi" id="ex-inp" type="text" placeholder="Descreva a tarefa..." onkeydown="if(event.key==='Enter')addExtra()"></div>
+        <div class="fg"><div class="flbl">Frequência</div><select class="fs" id="ex-freq"><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option><option value="demanda" selected>Demanda</option></select></div>
+        <div class="fg"><div class="flbl">Responsável</div><select class="fs" id="ex-resp"><option value="rafael">Rafael</option><option value="mariaclara">Maria Clara</option><option value="thais">Thaís</option><option value="todos">Todos</option></select></div>
+        <div class="fg"><div class="flbl">Prazo</div><input class="fi" id="ex-prazo" type="datetime-local"></div>
+        <button class="btn btn-ink" onclick="addExtra()">+ Adicionar</button>
+      </div>
+      <div class="ex-list" id="ex-list"><div class="ex-empty" id="ex-empty">Nenhuma tarefa extra pendente</div></div>
+    </div>
+
     <div class="sec" id="sh-dia"><div class="sec-lbl">Diário</div></div>
     <div class="task-grid" id="grid-dia">
       <div class="tc" data-m="all">
@@ -498,20 +512,14 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
         <div class="resp-row"><span class="rt rt-all">Todos os ADMs</span></div>
       </div>
     </div>
+
   </div>
 
-  <!-- ══ EXTRAS ══ -->
+  <!-- ══ EXTRAS (histórico completo) ══ -->
   <div class="page" id="page-extras">
     <div class="extras-wrap">
-      <div class="ex-head"><span class="ex-head-ttl">Tarefas extras — atribuídas pela coordenação</span><span class="ex-head-ct" id="ex-ct">0 pendentes</span></div>
-      <div class="ex-form">
-        <div class="fg"><div class="flbl">Descrição da tarefa</div><input class="fi" id="ex-inp" type="text" placeholder="Descreva a tarefa..." onkeydown="if(event.key==='Enter')addExtra()"></div>
-        <div class="fg"><div class="flbl">Frequência</div><select class="fs" id="ex-freq"><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option><option value="demanda" selected>Demanda</option></select></div>
-        <div class="fg"><div class="flbl">Responsável</div><select class="fs" id="ex-resp"><option value="rafael">Rafael</option><option value="mariaclara">Maria Clara</option><option value="thais">Thaís</option><option value="todos">Todos</option></select></div>
-        <div class="fg"><div class="flbl">Prazo</div><input class="fi" id="ex-prazo" type="datetime-local"></div>
-        <button class="btn btn-ink" onclick="addExtra()">+ Adicionar</button>
-      </div>
-      <div class="ex-list" id="ex-list"><div class="ex-empty" id="ex-empty">Nenhuma tarefa extra atribuída no momento</div></div>
+      <div class="ex-head"><span class="ex-head-ttl">Histórico completo de tarefas extras</span><span class="ex-head-ct" id="ex-ct-hist">0 registros</span></div>
+      <div class="ex-list" id="ex-list-hist"><div class="ex-empty">Nenhuma tarefa registrada</div></div>
     </div>
   </div>
 
@@ -817,8 +825,9 @@ document.addEventListener('DOMContentLoaded', function () {
       var nb=ge('nav-'+x);  if(nb) nb.classList.toggle('active',x===p);
     });
     var t=ge('topbar-ttl'); if(t) t.textContent=PAGE_TTL[p]||'';
-    if(p==='hist') renderHist();
-    if(p==='rel')  renderRel();
+    if(p==='hist')    renderHist();
+    if(p==='rel')     renderRel();
+    if(p==='extras')  renderExtras();
   };
 
   /* ── FILTRO DE MEMBRO ── */
@@ -935,24 +944,49 @@ document.addEventListener('DOMContentLoaded', function () {
   };
   function updateBadge(){ge('sb-badge').textContent=extras.filter(function(e){return !e.done;}).length;}
   function renderExtras(){
-    var list=ge('ex-list'),empty=ge('ex-empty');
-    var pend=extras.filter(function(e){return !e.done;}).length;
-    ge('ex-ct').textContent=pend+(pend===1?' pendente':' pendentes');
-    if(!extras.length){list.innerHTML='';list.appendChild(empty);empty.style.display='';return;}
-    empty.style.display='none';
-    var sorted=extras.filter(function(e){return !e.done;}).concat(extras.filter(function(e){return e.done;}));
-    list.innerHTML='';
-    sorted.forEach(function(ex){
-      var f=FREQ[ex.freq]||FREQ.demanda; var r=RESP[ex.resp]||RESP.rafael;
-      var ov=!ex.done&&isOv(ex.prazo); var ps=fmtP(ex.prazo);
-      var meta='';
-      if(ps) meta+='<span class="mi'+(ov?' ov':'')+'"><span class="dot3"></span>'+(ov?'Prazo vencido: ':'Prazo: ')+ps+'</span>';
-      if(ex.doneAt){var d2=new Date(ex.doneAt);meta+='<span class="mi"><span class="dot3"></span>Concluído '+d2.getDate()+' '+M[d2.getMonth()]+' às '+pad(d2.getHours())+':'+pad(d2.getMinutes())+'</span>';}
-      var card=document.createElement('div');
-      card.className='ex-card'+(ex.done?' done':'')+(ov?' overdue':'');
-      card.innerHTML='<input type="checkbox" class="ex-chk"'+(ex.done?' checked':'')+' onchange="toggleExtra(\''+ex.id+'\')"><div class="ex-body"><div class="ex-main"><span class="ex-txt'+(ex.done?' done':'')+'">'+ex.text+'</span><span class="badge '+f.cls+'">'+f.label+'</span><span class="badge '+r.cls+'">'+r.label+'</span>'+(ex.done?'<span class="done-stamp">Concluído</span>':'')+'</div>'+(meta?'<div class="ex-meta">'+meta+'</div>':'')+'</div><button class="xi" onclick="removeExtra(\''+ex.id+'\')" title="Remover">×</button>';
-      list.appendChild(card);
-    });
+    var pend=extras.filter(function(e){return !e.done;});
+    var total=extras.length;
+
+    // Contador no cabeçalho do painel
+    var ctEl=ge('ex-ct'); if(ctEl) ctEl.textContent=pend.length+(pend.length===1?' pendente':' pendentes');
+
+    // Contador na página de histórico
+    var ctHist=ge('ex-ct-hist'); if(ctHist) ctHist.textContent=total+(total===1?' registro':' registros');
+
+    // ── PAINEL PRINCIPAL: só pendentes ──
+    var list=ge('ex-list'), empty=ge('ex-empty');
+    if(list){
+      if(!pend.length){
+        list.innerHTML=''; list.appendChild(empty); empty.style.display='';
+      } else {
+        empty.style.display='none'; list.innerHTML='';
+        pend.forEach(function(ex){ list.appendChild(buildExCard(ex, false)); });
+      }
+    }
+
+    // ── PÁGINA EXTRAS: todas (pendentes + concluídas) ──
+    var listH=ge('ex-list-hist');
+    if(listH){
+      if(!extras.length){
+        listH.innerHTML='<div class="ex-empty">Nenhuma tarefa registrada</div>';
+      } else {
+        listH.innerHTML='';
+        var sorted=extras.filter(function(e){return !e.done;}).concat(extras.filter(function(e){return e.done;}));
+        sorted.forEach(function(ex){ listH.appendChild(buildExCard(ex, true)); });
+      }
+    }
+  }
+
+  function buildExCard(ex, showDone){
+    var f=FREQ[ex.freq]||FREQ.demanda; var r=RESP[ex.resp]||RESP.rafael;
+    var ov=!ex.done&&isOv(ex.prazo); var ps=fmtP(ex.prazo);
+    var meta='';
+    if(ps) meta+='<span class="mi'+(ov?' ov':'')+'"><span class="dot3"></span>'+(ov?'Prazo vencido: ':'Prazo: ')+ps+'</span>';
+    if(ex.doneAt){var d2=new Date(ex.doneAt);meta+='<span class="mi"><span class="dot3"></span>Concluído '+d2.getDate()+' '+M[d2.getMonth()]+' às '+pad(d2.getHours())+':'+pad(d2.getMinutes())+'</span>';}
+    var card=document.createElement('div');
+    card.className='ex-card'+(ex.done?' done':'')+(ov?' overdue':'');
+    card.innerHTML='<input type="checkbox" class="ex-chk"'+(ex.done?' checked':'')+' onchange="toggleExtra(\''+ex.id+'\')"><div class="ex-body"><div class="ex-main"><span class="ex-txt'+(ex.done?' done':'')+'">'+ex.text+'</span><span class="badge '+f.cls+'">'+f.label+'</span><span class="badge '+r.cls+'">'+r.label+'</span>'+(ex.done?'<span class="done-stamp">Concluído</span>':'')+'</div>'+(meta?'<div class="ex-meta">'+meta+'</div>':'')+'</div>'+(showDone?'<button class="xi" onclick="removeExtra(\''+ex.id+'\')" title="Remover">×</button>':'');
+    return card;
   }
 
   /* ── FORMAÇÕES ── */
