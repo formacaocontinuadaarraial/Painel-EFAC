@@ -329,7 +329,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
   <div class="page active" id="page-dash">
 
     <!-- BANNER DE CONFIGURAÇÃO -->
-    <div class="cfg-banner" id="cfg-banner">
+    <div class="cfg-banner" id="cfg-banner" style="display:none">
       <div class="cfg-ttl">⚙️ Configure a conexão com o Google Sheets</div>
       <div class="cfg-desc">Cole abaixo a URL do seu Apps Script (Web App URL). Os dados serão salvos automaticamente na planilha e sincronizados entre todos os computadores da equipe. <strong>Esta configuração é feita uma única vez.</strong></div>
       <div class="cfg-row">
@@ -1100,8 +1100,12 @@ document.addEventListener('DOMContentLoaded', function () {
         setSyncStatus('syncing','Conectando...');
         syncNow();
         iniciarSyncAutomatico();
+      } else {
+        ge('cfg-banner').style.display='';
       }
-    }catch(e){}
+    }catch(e){
+      ge('cfg-banner').style.display='';
+    }
   }
 
   initDates();
