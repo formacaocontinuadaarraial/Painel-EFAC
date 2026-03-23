@@ -296,7 +296,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
   <div class="sb-date"><strong id="sb-date">—</strong><span id="sb-day">—</span></div>
   <div class="sync-bar">
     <div class="sync-dot nourl" id="sync-dot"></div>
-    <div class="sync-txt" id="sync-txt">Configure a URL do Sheets abaixo</div>
+    <div class="sync-txt" id="sync-txt">URL não configurada</div>
   </div>
   <nav class="nav">
     <div class="nav-sec">Menu</div>
@@ -310,7 +310,13 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
     <button class="nav-btn" id="nav-hist"   onclick="goPage('hist')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2.5" stroke-linecap="round"/></svg>Histórico</button>
     <button class="nav-btn" id="nav-rel"    onclick="goPage('rel')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14V8l4-4 4 4 4-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Relatório</button>
   </nav>
-  <div class="sb-foot">v2.2 · EFAC</div>
+  <div class="sb-foot" style="display:flex;flex-direction:column;gap:8px">
+    <button onclick="abrirConfig()" style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:500;padding:7px 10px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.55);cursor:pointer;width:100%;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px" onmouseover="this.style.background='rgba(255,255,255,.12)';this.style.color='rgba(255,255,255,.85)'" onmouseout="this.style.background='rgba(255,255,255,.07)';this.style.color='rgba(255,255,255,.55)'">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke-linecap="round"/></svg>
+      Configurar URL do Sheets
+    </button>
+    <span style="font-size:10px;color:rgba(255,255,255,.2)">v2.2 · EFAC</span>
+  </div>
 </aside>
 
 <div class="main">
@@ -657,19 +663,24 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   window.salvarURL = salvarURL;
 
+  window.abrirConfig = function() {
+    var banner = ge('cfg-banner');
+    banner.style.display = '';
+    goPage('dash');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   /* ── BUSCAR DADOS DO SHEETS ── */
   function syncNow() {
     if (!API_URL) { setSyncStatus('nourl','URL não configurada'); return; }
     setSyncStatus('syncing','Sincronizando...');
     ge('btn-sync').disabled = true;
 
-    fetch(API_URL)
+    fetch(API_URL, { redirect: 'follow' })
       .then(function(r){ return r.json(); })
       .then(function(dados){
-        // Aplica dados remotos
         if (dados.extras)      { extras      = dados.extras; }
         if (dados.formacoes)   {
-          // Reconstrói chks aninhado
           formacoes = dados.formacoes.map(function(f){
             return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
                      chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
@@ -688,9 +699,39 @@ document.addEventListener('DOMContentLoaded', function () {
         ge('btn-sync').disabled = false;
       })
       .catch(function(err){
-        setSyncStatus('err','Erro de conexão');
+        // Fallback: tenta via URL com parâmetro para forçar resposta JSON sem preflight
+        fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow' })
+          .then(function(r){ return r.text(); })
+          .then(function(txt){
+            try {
+              var dados = JSON.parse(txt);
+              if (dados.extras)      { extras      = dados.extras; }
+              if (dados.formacoes)   {
+                formacoes = dados.formacoes.map(function(f){
+                  return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
+                           chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
+                });
+              }
+              if (dados.declaracoes) { declaracoes = dados.declaracoes; }
+              if (dados.notas)       { notas       = dados.notas; }
+              if (dados.chks)        {
+                var novoChks = {};
+                dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
+                chks_state = novoChks;
+                aplicarChks();
+              }
+              renderExtras(); renderFormacoes(); renderDecl(); renderNotas(); updateBadge(); updateProgress();
+              setSyncStatus('ok','Sincronizado • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
+            } catch(e2) {
+              setSyncStatus('err','Erro de conexão');
+              console.error('Parse error:', e2, txt);
+            }
+          })
+          .catch(function(err2){
+            setSyncStatus('err','Erro de conexão');
+            console.error('Sync error:', err, err2);
+          });
         ge('btn-sync').disabled = false;
-        console.error('Sync error:', err);
       });
   }
   window.syncNow = syncNow;
@@ -708,21 +749,21 @@ document.addEventListener('DOMContentLoaded', function () {
         notas: notas,
         chks: chks_state
       };
+      // Google Apps Script requer no-cors para POST de domínio externo
       fetch(API_URL, {
         method: 'POST',
+        mode: 'no-cors',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(payload)
       })
-      .then(function(r){ return r.json(); })
-      .then(function(res){
-        if (res.ok) {
-          setSyncStatus('ok','Salvo • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
-        } else {
-          setSyncStatus('err','Erro ao salvar');
-          console.error('Save error:', res.erro);
-        }
+      .then(function(){
+        // no-cors retorna resposta opaca — assumimos sucesso se não deu erro
+        setSyncStatus('ok','Salvo • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
+        saveLocal();
       })
       .catch(function(err){
-        setSyncStatus('err','Erro de conexão');
+        setSyncStatus('err','Erro ao salvar');
         console.error('Save fetch error:', err);
       });
     }, 1000);
