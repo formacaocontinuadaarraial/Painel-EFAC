@@ -380,11 +380,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
         <div class="tc-top"><div class="tc-title">E-mail</div><span class="badge b-dia">Diário</span></div>
         <div class="tc-desc">Verificar, responder e executar demandas recebidas por e-mail.</div>
         <div class="resp-row"><span class="rt rt-mc"><span class="av av-mc">MC</span>Maria Clara</span><span class="rt rt-th"><span class="av av-th">TH</span>Thaís</span><span class="rt rt-rf"><span class="av av-rf">RF</span>Rafael</span></div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label class="chk" id="ci-em1"><input type="checkbox" onchange="toggleChk('ci-em1')"><span>Verificar e-mails recebidos</span></label>
-          <label class="chk" id="ci-em2"><input type="checkbox" onchange="toggleChk('ci-em2')"><span>Responder pendências</span></label>
-          <label class="chk" id="ci-em3"><input type="checkbox" onchange="toggleChk('ci-em3')"><span>Executar demandas do e-mail</span></label>
-        </div>
       </div>
     </div>
 
@@ -395,20 +390,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
         <div class="tc-desc">Produzir e entregar para Alessandra até quinta-feira.</div>
         <div class="resp-row"><span class="rt rt-rf"><span class="av av-rf">RF</span>Rafael</span></div>
         <div class="cdrow"><div class="cddot" id="cd1-dot"></div><span class="cdtxt" id="cd1-txt">—</span><span class="cdpill" id="cd1-pill"></span></div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label class="chk" id="ci-cs1"><input type="checkbox" onchange="toggleChk('ci-cs1')"><span>Produzir os cards da semana</span></label>
-          <label class="chk" id="ci-cs2"><input type="checkbox" onchange="toggleChk('ci-cs2')"><span>Entregar para Alessandra</span></label>
-        </div>
       </div>
       <div class="tc" data-m="rafael">
         <div class="tc-top"><div class="tc-title">Cards individuais de formações</div><span class="badge b-sem">Semanal</span></div>
         <div class="tc-desc">Conforme solicitação dos supervisores. Entregar até quinta-feira.</div>
         <div class="resp-row"><span class="rt rt-rf"><span class="av av-rf">RF</span>Rafael</span></div>
         <div class="cdrow"><div class="cddot" id="cd2-dot"></div><span class="cdtxt" id="cd2-txt">—</span><span class="cdpill" id="cd2-pill"></span></div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label class="chk" id="ci-ci1"><input type="checkbox" onchange="toggleChk('ci-ci1')"><span>Produção dos cards</span></label>
-          <label class="chk" id="ci-ci2"><input type="checkbox" onchange="toggleChk('ci-ci2')"><span>Enviados para supervisão</span></label>
-        </div>
       </div>
     </div>
 
@@ -482,31 +469,33 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
         <div class="tc-top"><div class="tc-title">Ofícios</div><span class="badge b-dem">Demanda</span></div>
         <div class="tc-desc">Expedidos e recebidos — conferência, confecção e arquivamento.</div>
         <div class="resp-row"><span class="rt rt-mc"><span class="av av-mc">MC</span>Maria Clara</span><span class="rt rt-th"><span class="av av-th">TH</span>Thaís</span><span class="rt rt-rf"><span class="av av-rf">RF</span>Rafael</span></div>
-        <label class="chk" id="ci-of1"><input type="checkbox" onchange="toggleChk('ci-of1')"><span>Conferidos e arquivados</span></label>
       </div>
       <div class="tc" data-m="mariaclara">
         <div class="tc-top"><div class="tc-title">Fotos no Drive</div><span class="badge b-dem">Demanda</span></div>
         <div class="tc-desc">Atualizar o Drive com as fotos das formações registradas.</div>
         <div class="resp-row"><span class="rt rt-mc"><span class="av av-mc">MC</span>Maria Clara</span></div>
-        <label class="chk" id="ci-dr1"><input type="checkbox" onchange="toggleChk('ci-dr1')"><span>Fotos enviadas e organizadas no Drive</span></label>
+        <div style="border-top:1px solid var(--bs);padding-top:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;font-weight:600;font-family:'IBM Plex Mono',monospace">Última atualização do Drive</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="date" id="drive-data" style="font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:7px 10px;border:1px solid var(--br);border-radius:var(--rs);background:var(--bg);color:var(--ink);flex:1" onchange="salvarDriveData()">
+            <div id="drive-data-label" style="font-size:12px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;white-space:nowrap"></div>
+          </div>
+        </div>
       </div>
       <div class="tc" data-m="mariaclara">
         <div class="tc-top"><div class="tc-title">Declarações de comparecimento</div><span class="badge b-dem">Demanda</span></div>
         <div class="tc-desc">Emissão das declarações conforme solicitação.</div>
         <div class="resp-row"><span class="rt rt-mc"><span class="av av-mc">MC</span>Maria Clara</span></div>
-        <label class="chk" id="ci-dc1"><input type="checkbox" onchange="toggleChk('ci-dc1')"><span>Declarações emitidas no dia</span></label>
       </div>
       <div class="tc" data-m="rafael">
         <div class="tc-top"><div class="tc-title">Envio de fotos à comunicação</div><span class="badge b-dem">Demanda</span></div>
         <div class="tc-desc">Enviar as fotos das formações para o setor de comunicação.</div>
         <div class="resp-row"><span class="rt rt-rf"><span class="av av-rf">RF</span>Rafael</span></div>
-        <label class="chk" id="ci-rf1"><input type="checkbox" onchange="toggleChk('ci-rf1')"><span>Fotos enviadas para comunicação</span></label>
       </div>
       <div class="tc" data-m="all">
         <div class="tc-top"><div class="tc-title">Fotografar formações</div><span class="badge b-dem">Demanda</span></div>
         <div class="tc-desc">Registrar cada formação com fotos — pode haver mais de uma no mesmo dia.</div>
         <div class="resp-row"><span class="rt rt-all">Todos os ADMs</span></div>
-        <label class="chk" id="ci-ft1"><input type="checkbox" onchange="toggleChk('ci-ft1')"><span>Formações fotografadas no dia</span></label>
       </div>
     </div>
   </div>
@@ -547,12 +536,22 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 
   <!-- ══ DECLARAÇÕES ══ -->
   <div class="page" id="page-decl">
-    <div class="tc" style="max-width:680px">
+    <div class="tc" style="max-width:720px">
       <div class="tc-top"><div class="tc-title">Declarações de comparecimento</div><span class="badge b-dem">Demanda</span></div>
-      <div class="tc-desc">Registre cada declaração emitida com os dados do servidor.</div>
+      <div class="tc-desc">Registre cada declaração emitida — os dados ficam salvos no histórico para controle.</div>
       <div style="border-top:1px solid var(--bs);padding-top:14px;display:flex;flex-direction:column;gap:10px">
-        <div class="dc2"><div class="dcr"><label>Servidor(a)</label><input id="dc-nome" type="text" placeholder="Nome completo"></div><div class="dcr"><label>Formação / Evento</label><input id="dc-form" type="text" placeholder="Nome da formação"></div></div>
-        <div class="dc3"><div class="dcr"><label>Data</label><input id="dc-data" type="date"></div><div class="dcr"><label>Horário início</label><input id="dc-ini" type="time"></div><div class="dcr"><label>Horário fim</label><input id="dc-fim" type="time"></div></div>
+        <div class="dc2">
+          <div class="dcr"><label>Servidor(a)</label><input id="dc-nome" type="text" placeholder="Nome completo"></div>
+          <div class="dcr"><label>Unidade escolar</label><input id="dc-unidade" type="text" placeholder="Ex: EMEF São João, Secretaria"></div>
+        </div>
+        <div class="dc2">
+          <div class="dcr"><label>Formação / Evento</label><input id="dc-form" type="text" placeholder="Nome da formação ou evento"></div>
+          <div class="dcr"><label>Data</label><input id="dc-data" type="date"></div>
+        </div>
+        <div class="dc2">
+          <div class="dcr"><label>Horário início</label><input id="dc-ini" type="time"></div>
+          <div class="dcr"><label>Horário fim</label><input id="dc-fim" type="time"></div>
+        </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-sm" id="btn-dc-copy" onclick="copiarDecl()">Copiar dados da declaração</button>
           <button class="btn btn-sm btn-ink" onclick="registrarDecl()">+ Registrar declaração</button>
@@ -892,6 +891,26 @@ document.addEventListener('DOMContentLoaded', function () {
     updateProgress(); save();
   };
 
+  /* ── FOTOS NO DRIVE ── */
+  window.salvarDriveData = function() {
+    var val = ge('drive-data').value;
+    try { localStorage.setItem('efac_drive_data', val); } catch(e){}
+    atualizarLabelDrive(val);
+    toast('Data salva','ok');
+  };
+  function atualizarLabelDrive(val) {
+    var lbl = ge('drive-data-label'); if (!lbl) return;
+    if (!val) { lbl.textContent = ''; return; }
+    var p = val.split('-');
+    lbl.textContent = 'Atualizado em ' + p[2] + '/' + p[1] + '/' + p[0];
+  }
+  function carregarDriveData() {
+    try {
+      var val = localStorage.getItem('efac_drive_data') || '';
+      if (val) { var inp = ge('drive-data'); if(inp) inp.value = val; atualizarLabelDrive(val); }
+    } catch(e){}
+  }
+
   /* ── CHECKLISTS ── */
   window.toggleChk = function(id){
     var row=ge(id); if(!row) return;
@@ -977,15 +996,15 @@ document.addEventListener('DOMContentLoaded', function () {
   /* ── DECLARAÇÕES ── */
   window.registrarDecl=function(){
     var nome=ge('dc-nome').value.trim(); if(!nome){ge('dc-nome').focus();return;}
-    declaracoes.push({id:'dc-'+Date.now(),nome:nome,form:ge('dc-form').value.trim(),data:ge('dc-data').value,ini:ge('dc-ini').value,fim:ge('dc-fim').value,at:new Date().toISOString()});
-    ['dc-nome','dc-form','dc-data','dc-ini','dc-fim'].forEach(function(id){ge(id).value='';});
+    declaracoes.push({id:'dc-'+Date.now(),nome:nome,unidade:ge('dc-unidade').value.trim(),form:ge('dc-form').value.trim(),data:ge('dc-data').value,ini:ge('dc-ini').value,fim:ge('dc-fim').value,at:new Date().toISOString()});
+    ['dc-nome','dc-unidade','dc-form','dc-data','dc-ini','dc-fim'].forEach(function(id){ge(id).value='';});
     renderDecl(); save(); toast('Declaração registrada','ok');
   };
   window.removeDecl=function(id){declaracoes=declaracoes.filter(function(d){return d.id!==id;});renderDecl();save();};
   window.copiarDecl=function(){
-    var nome=ge('dc-nome').value.trim()||'—',form=ge('dc-form').value.trim()||'—',data=ge('dc-data').value||'—',ini=ge('dc-ini').value||'—',fim=ge('dc-fim').value||'—';
+    var nome=ge('dc-nome').value.trim()||'—',unidade=ge('dc-unidade').value.trim()||'—',form=ge('dc-form').value.trim()||'—',data=ge('dc-data').value||'—',ini=ge('dc-ini').value||'—',fim=ge('dc-fim').value||'—';
     var df=data; if(data!=='—'){var p=data.split('-');df=p[2]+'/'+p[1]+'/'+p[0];}
-    navigator.clipboard.writeText('Servidor(a): '+nome+'\nFormação / Evento: '+form+'\nData: '+df+'\nHorário: '+ini+' às '+fim).then(function(){
+    navigator.clipboard.writeText('Servidor(a): '+nome+'\nUnidade: '+unidade+'\nFormação / Evento: '+form+'\nData: '+df+'\nHorário: '+ini+' às '+fim).then(function(){
       var b=ge('btn-dc-copy'); b.textContent='Copiado!'; b.classList.add('btn-ink');
       setTimeout(function(){b.textContent='Copiar dados da declaração';b.classList.remove('btn-ink');},2000);
       toast('Dados copiados','ok');
@@ -998,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var df=d.data||'—'; if(d.data){var p=d.data.split('-');df=p[2]+'/'+p[1]+'/'+p[0];}
       var hor=(d.ini&&d.fim)?d.ini+' às '+d.fim:(d.ini||d.fim||'—');
       var el=document.createElement('div'); el.className='decl-item';
-      el.innerHTML='<span class="dn-name">'+d.nome+'</span><span class="sep">·</span><span>'+(d.form||'—')+'</span><span class="sep">·</span><span>'+df+'</span><span class="sep">·</span><span>'+hor+'</span><button style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--ink3);font-size:16px;padding:0 4px;border-radius:4px" onclick="removeDecl(\''+d.id+'\')">×</button>';
+      el.innerHTML='<span class="dn-name">'+d.nome+'</span>'+(d.unidade?'<span class="sep">·</span><span style="color:var(--ink3);font-size:11px">'+d.unidade+'</span>':'')+'<span class="sep">·</span><span>'+(d.form||'—')+'</span><span class="sep">·</span><span>'+df+'</span><span class="sep">·</span><span>'+hor+'</span><button style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--ink3);font-size:16px;padding:0 4px;border-radius:4px" onclick="removeDecl(\''+d.id+'\')">×</button>';
       list.appendChild(el);
     });
   }
@@ -1052,7 +1071,8 @@ document.addEventListener('DOMContentLoaded', function () {
     declaracoes.forEach(function(d){
       var df=d.data||'—'; if(d.data){var p=d.data.split('-');df=p[2]+'/'+p[1]+'/'+p[0];}
       if(statF&&statF!=='done')return;
-      addRow('decl',d.nome+(d.form?' — '+d.form:''),d.data||'—',df,'Registrado','ok');
+      var desc=d.nome+(d.unidade?' ('+d.unidade+')':'')+(d.form?' — '+d.form:'');
+      addRow('decl',desc,df,df,'Registrado','ok');
     });
     if(!rows.length){empty.style.display='';return;} empty.style.display='none';
     rows.forEach(function(r){
@@ -1151,6 +1171,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   initDates();
   loadLocal();
+  carregarDriveData();
   updateProgress();
   initURL();
 
