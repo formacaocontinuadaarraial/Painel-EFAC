@@ -678,66 +678,53 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   /* ── BUSCAR DADOS DO SHEETS ── */
+  var pendingSave = false;
+
+  function aplicarDadosRemotos(dados) {
+    if (pendingSave) return; // não sobrescreve se há salvamento em curso
+    if (dados.extras)      { extras      = dados.extras; }
+    if (dados.formacoes)   {
+      formacoes = dados.formacoes.map(function(f){
+        return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
+                 chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
+      });
+    }
+    if (dados.declaracoes) { declaracoes = dados.declaracoes; }
+    if (dados.notas)       { notas       = dados.notas; }
+    if (dados.chks)        {
+      var novoChks = {};
+      dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
+      chks_state = novoChks;
+      aplicarChks();
+    }
+    renderExtras(); renderFormacoes(); renderDecl(); renderNotas(); updateBadge(); updateProgress();
+  }
+
   function syncNow() {
     if (!API_URL) { setSyncStatus('nourl','URL não configurada'); return; }
+    if (pendingSave) { return; } // aguarda salvamento terminar antes de sincronizar
     setSyncStatus('syncing','Sincronizando...');
     ge('btn-sync').disabled = true;
 
     fetch(API_URL, { redirect: 'follow' })
       .then(function(r){ return r.json(); })
       .then(function(dados){
-        if (dados.extras)      { extras      = dados.extras; }
-        if (dados.formacoes)   {
-          formacoes = dados.formacoes.map(function(f){
-            return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
-                     chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
-          });
-        }
-        if (dados.declaracoes) { declaracoes = dados.declaracoes; }
-        if (dados.notas)       { notas       = dados.notas; }
-        if (dados.chks)        {
-          var novoChks = {};
-          dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
-          chks_state = novoChks;
-          aplicarChks();
-        }
-        renderExtras(); renderFormacoes(); renderDecl(); renderNotas(); updateBadge(); updateProgress();
+        aplicarDadosRemotos(dados);
         setSyncStatus('ok','Sincronizado • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
         ge('btn-sync').disabled = false;
       })
-      .catch(function(err){
-        // Fallback: tenta via URL com parâmetro para forçar resposta JSON sem preflight
+      .catch(function(){
         fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow' })
           .then(function(r){ return r.text(); })
           .then(function(txt){
             try {
-              var dados = JSON.parse(txt);
-              if (dados.extras)      { extras      = dados.extras; }
-              if (dados.formacoes)   {
-                formacoes = dados.formacoes.map(function(f){
-                  return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
-                           chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
-                });
-              }
-              if (dados.declaracoes) { declaracoes = dados.declaracoes; }
-              if (dados.notas)       { notas       = dados.notas; }
-              if (dados.chks)        {
-                var novoChks = {};
-                dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
-                chks_state = novoChks;
-                aplicarChks();
-              }
-              renderExtras(); renderFormacoes(); renderDecl(); renderNotas(); updateBadge(); updateProgress();
+              aplicarDadosRemotos(JSON.parse(txt));
               setSyncStatus('ok','Sincronizado • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
             } catch(e2) {
               setSyncStatus('err','Erro de conexão');
-              console.error('Parse error:', e2, txt);
             }
           })
-          .catch(function(err2){
-            setSyncStatus('err','Erro de conexão');
-            console.error('Sync error:', err, err2);
-          });
+          .catch(function(){ setSyncStatus('err','Erro de conexão'); });
         ge('btn-sync').disabled = false;
       });
   }
@@ -747,6 +734,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function salvarRemoto() {
     if (!API_URL) return;
     clearTimeout(saveTimer);
+    pendingSave = true;
     saveTimer = setTimeout(function(){
       setSyncStatus('syncing','Salvando...');
       var payload = {
@@ -756,7 +744,6 @@ document.addEventListener('DOMContentLoaded', function () {
         notas: notas,
         chks: chks_state
       };
-      // Google Apps Script requer no-cors para POST de domínio externo
       fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -765,18 +752,19 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify(payload)
       })
       .then(function(){
-        // no-cors retorna resposta opaca — assumimos sucesso se não deu erro
+        pendingSave = false;
         setSyncStatus('ok','Salvo • '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()));
         saveLocal();
       })
       .catch(function(err){
-        setSyncStatus('err','Erro ao salvar');
+        pendingSave = false;
+        setSyncStatus('err','Salvo localmente — sem conexão remota');
         console.error('Save fetch error:', err);
       });
     }, 1000);
   }
 
-  /* Também salva localmente como fallback */
+  /* Salva localmente sempre */
   function saveLocal() {
     try {
       localStorage.setItem('efac_extras', JSON.stringify(extras));
@@ -787,6 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch(e){}
   }
 
+  /* Salva local primeiro, depois remoto */
   function save() { saveLocal(); salvarRemoto(); }
 
   /* ── SYNC AUTOMÁTICO ── */
