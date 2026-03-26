@@ -45,7 +45,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--ink);min-heig
 .sync-bar{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:7px}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:#3F3F46;flex-shrink:0;transition:background .3s}
 .sync-dot.ok{background:#4ADE80}.sync-dot.syncing{background:var(--amber);animation:pulse .8s infinite}
-.sync-dot.err{background:var(--red)}.sync-dot.nourl{background:#3F3F46}
+.sync-dot.err{background:var(--red)}.sync-dot.nourl{background:#3F3F46}.sync-dot.local{background:#6366F1}
 .sync-txt{font-size:10px;color:rgba(255,255,255,.28);font-family:var(--font-mono);flex:1;line-height:1.3}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .nav{padding:10px 8px;flex:1}
@@ -405,7 +405,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--ink);min-heig
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke-linecap="round"/></svg>
       Configurar URL do Sheets
     </button>
-    <div class="sb-ver">v3.0 · EFAC</div>
+    <div class="sb-ver">v3.1 · EFAC</div>
   </div>
 </aside>
 
@@ -728,7 +728,6 @@ document.addEventListener('DOMContentLoaded', function() {
   var syncTimer = null, saveTimer = null;
   var SYNC_INTERVAL = 30000;
   var lastLocalEdit = 0;
-  var pendingSave = false;
 
   /* Calendário */
   var calYear, calMonth;
@@ -774,7 +773,8 @@ document.addEventListener('DOMContentLoaded', function() {
     try { localStorage.setItem('efac_api_url', url); } catch(e){}
     ge('cfg-banner').style.display='none';
     toast('URL salva! Sincronizando...','ok');
-    syncNow(); iniciarSyncAutomatico();
+    syncNow();
+    iniciarSyncAutomatico();
   }
   window.salvarURL = salvarURL;
 
@@ -785,63 +785,109 @@ document.addEventListener('DOMContentLoaded', function() {
     banner.scrollIntoView({ behavior:'smooth', block:'start' });
   };
 
+  /* ─────────────────────────────────────────────────────────────
+     SAVE / SYNC — CORRIGIDO
+     • save() sempre persiste local PRIMEIRO, antes de qualquer fetch
+     • salvarRemoto() sem mode:'no-cors' para receber resposta real
+     • Erro de rede apenas atualiza status — dados já estão seguros
+  ───────────────────────────────────────────────────────────── */
+  function saveLocal() {
+    try { localStorage.setItem('efac_extras',    JSON.stringify(extras)); }      catch(e){}
+    try { localStorage.setItem('efac_form',      JSON.stringify(formacoes)); }   catch(e){}
+    try { localStorage.setItem('efac_decl',      JSON.stringify(declaracoes)); } catch(e){}
+    try { localStorage.setItem('efac_notas',     JSON.stringify(notas)); }       catch(e){}
+    try { localStorage.setItem('efac_chks',      JSON.stringify(chks_state)); }  catch(e){}
+  }
+
+  function save() {
+    lastLocalEdit = Date.now();
+    saveLocal();          // ← SEMPRE salva localmente PRIMEIRO, nunca perde dados
+    salvarRemoto();
+  }
+
+  function salvarRemoto() {
+    if (!API_URL) {
+      setSyncStatus('local', 'Salvo localmente');
+      return;
+    }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      setSyncStatus('syncing', 'Salvando...');
+      var payload = {
+        extras: extras,
+        formacoes: formacoes,
+        declaracoes: declaracoes,
+        notas: notas,
+        chks: chks_state
+      };
+      // SEM mode:'no-cors' — permite receber resposta real do servidor
+      fetch(API_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      })
+        .then(function () {
+          setSyncStatus('ok', 'Salvo · ' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes()));
+        })
+        .catch(function () {
+          // Dados JÁ estão salvos localmente — apenas avisa, sem perda
+          setSyncStatus('local', 'Salvo localmente (sem rede)');
+        });
+    }, 800);
+  }
+
+  function syncNow() {
+    if (!API_URL) { setSyncStatus('nourl', 'URL não configurada'); return; }
+    // Não bloqueia sync se houve edição local recente — apenas avisa
+    if (Date.now() - lastLocalEdit < 3000) {
+      toast('Aguarde — salvando edição recente...', '');
+      return;
+    }
+    setSyncStatus('syncing', 'Sincronizando...');
+    var btnSync = ge('btn-sync');
+    if (btnSync) btnSync.disabled = true;
+    fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow' })
+      .then(function(r) { return r.json(); })
+      .then(function(dados) {
+        aplicarDadosRemotos(dados);
+        setSyncStatus('ok', 'Sincronizado · ' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes()));
+        if (btnSync) btnSync.disabled = false;
+      })
+      .catch(function() {
+        setSyncStatus('local', 'Offline — dados locais');
+        toast('Sem conexão com o servidor', 'warn');
+        if (btnSync) btnSync.disabled = false;
+      });
+  }
+  window.syncNow = syncNow;
+
   function aplicarDadosRemotos(dados) {
-    if (pendingSave || (Date.now() - lastLocalEdit < 2000)) return;
-    if (dados.extras) { extras = dados.extras; }
-    if (dados.formacoes) {
+    // Não sobrescreve se há edição local muito recente
+    if (Date.now() - lastLocalEdit < 3000) return;
+    if (dados.extras)      { extras = dados.extras; }
+    if (dados.formacoes)   {
       formacoes = dados.formacoes.map(function(f){
         return { id:f.id, tema:f.tema, form:f.form, loc:f.loc, pub:f.pub, turno:f.turno, date:f.date,
                  chks:{ foto:!!f.foto, env:!!f.env, ficha:!!f.ficha } };
       });
     }
     if (dados.declaracoes) { declaracoes = dados.declaracoes; }
-    if (dados.notas) { notas = dados.notas; }
+    if (dados.notas)       { notas = dados.notas; }
     if (dados.chks) {
       var novoChks = {};
-      dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
-      chks_state = novoChks; aplicarChks();
+      if (Array.isArray(dados.chks)) {
+        dados.chks.forEach(function(c){ novoChks[c.id] = !!c.checked; });
+      } else {
+        novoChks = dados.chks;
+      }
+      chks_state = novoChks;
+      aplicarChks();
     }
-    renderExtras(); renderFormacoes(); renderDecl(); renderNotas(); updateBadge(); updateProgress(); renderCalendario();
+    renderExtras(); renderFormacoes(); renderDecl(); renderNotas();
+    updateBadge(); updateProgress(); renderCalendario();
+    saveLocal(); // sincroniza cache local com dados remotos
   }
-
-  function syncNow() {
-    if (!API_URL) { setSyncStatus('nourl','URL não configurada'); return; }
-    if (pendingSave) return;
-    setSyncStatus('syncing','Sincronizando...'); ge('btn-sync').disabled = true;
-    fetch(API_URL, { redirect:'follow' })
-      .then(function(r){ return r.json(); })
-      .then(function(dados){ aplicarDadosRemotos(dados); setSyncStatus('ok','Sincronizado · '+pad(new Date().getHours())+':'+pad(new Date().getMinutes())); ge('btn-sync').disabled=false; })
-      .catch(function(){
-        fetch(API_URL+'?t='+Date.now(), { redirect:'follow' })
-          .then(function(r){ return r.text(); })
-          .then(function(txt){ try { aplicarDadosRemotos(JSON.parse(txt)); setSyncStatus('ok','Sincronizado · '+pad(new Date().getHours())+':'+pad(new Date().getMinutes())); } catch(e2){ setSyncStatus('err','Erro de conexão'); toast('Erro ao sincronizar','err'); } })
-          .catch(function(){ setSyncStatus('err','Erro de conexão'); toast('Erro ao sincronizar','err'); });
-        ge('btn-sync').disabled=false;
-      });
-  }
-  window.syncNow = syncNow;
-
-  function salvarRemoto() {
-    if (!API_URL) return;
-    clearTimeout(saveTimer); pendingSave = true;
-    saveTimer = setTimeout(function(){
-      setSyncStatus('syncing','Salvando...');
-      var payload = { extras:extras, formacoes:formacoes, declaracoes:declaracoes, notas:notas, chks:chks_state };
-      fetch(API_URL, { method:'POST', mode:'no-cors', redirect:'follow', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) })
-        .then(function(){ pendingSave=false; setSyncStatus('ok','Salvo · '+pad(new Date().getHours())+':'+pad(new Date().getMinutes())); saveLocal(); })
-        .catch(function(err){ pendingSave=false; setSyncStatus('err','Salvo localmente'); console.error(err); });
-    }, 1000);
-  }
-
-  function saveLocal() {
-    try { localStorage.setItem('efac_extras', JSON.stringify(extras)); } catch(e){}
-    try { localStorage.setItem('efac_form', JSON.stringify(formacoes)); } catch(e){}
-    try { localStorage.setItem('efac_decl', JSON.stringify(declaracoes)); } catch(e){}
-    try { localStorage.setItem('efac_notas', JSON.stringify(notas)); } catch(e){}
-    try { localStorage.setItem('efac_chks', JSON.stringify(chks_state)); } catch(e){}
-  }
-
-  function save() { lastLocalEdit = Date.now(); saveLocal(); salvarRemoto(); }
 
   function iniciarSyncAutomatico() {
     clearInterval(syncTimer);
@@ -1052,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', function() {
       '<span class="badge '+r.cls+'">'+escape(r.label)+'</span>'+
       (ex.done?'<span class="done-stamp">Concluído</span>':'')+
       '</div>'+(meta?'<div class="ex-meta">'+meta+'</div>':'')+'</div>'+
-      (showDone?'<button class="xi" onclick="removeExtra(\''+ex.id+'\')" title="Remover">×</button>':'');
+      '<button class="xi" onclick="removeExtra(\''+ex.id+'\')" title="Remover">×</button>';
     return card;
   }
 
@@ -1131,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return p[2]+' de '+MF[d.getMonth()]+' de '+p[0];
   }
 
-  /* ── DECLARAÇÕES (simplificado: só nome) ── */
+  /* ── DECLARAÇÕES ── */
   window.registrarDecl=function(){
     var nome=ge('dc-nome').value.trim(); if(!nome){ge('dc-nome').focus();return;}
     declaracoes.unshift({id:uid('dc-'),nome:nome,at:new Date().toISOString()});
@@ -1144,7 +1190,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var list=ge('decl-list'), empty=ge('decl-empty');
     var ct=ge('decl-count'); if(ct) ct.textContent=declaracoes.length+' registro'+(declaracoes.length===1?'':'s');
     list.innerHTML='';
-    /* recentes tags */
     var rec=ge('decl-recentes');
     if(rec){
       if(declaracoes.length){
@@ -1199,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function addRow(tipo,desc,resp,prazoStr,status,sc){
       if(typeF&&typeF!==tipo) return;
       if(search&&desc.toLowerCase().indexOf(search)===-1&&resp.toLowerCase().indexOf(search)===-1) return;
-      rows.push({tipo,desc,resp,prazoStr,status,sc});
+      rows.push({tipo:tipo,desc:desc,resp:resp,prazoStr:prazoStr,status:status,sc:sc});
     }
     extras.forEach(function(e){
       var r=(RESP[e.resp]||{label:e.resp}).label; var ov=!e.done&&isOv(e.prazo);
@@ -1260,29 +1305,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderCalendario(){
     var now=new Date(); var todayStr=toDS(now);
-    var wk=getWeekKey(); // semana atual
-    var titleEl=ge('cal-title'); var grid=ge('cal-grid'); if(!grid) return;
     ge('cal-title').textContent=MF[calMonth]+' de '+calYear;
+    var grid=ge('cal-grid'); if(!grid) return;
 
-    /* Monta mapa de eventos por dia */
-    var evMap={}; // { 'YYYY-MM-DD': [{type,label}] }
+    var evMap={};
     function addEv(ds,type,label){ if(!evMap[ds]) evMap[ds]=[]; evMap[ds].push({type:type,label:label}); }
 
-    /* Tarefas extras com prazo */
     extras.forEach(function(e){
       if(!e.prazo) return;
       var d=new Date(e.prazo); var ds=toDS(d);
       var ov=!e.done&&isOv(e.prazo);
       addEv(ds, e.done?'fixed':(ov?'overdue':'extra'), e.text);
     });
-
-    /* Formações (usam a data da formação) */
     formacoes.forEach(function(f){
       if(!f.date) return;
       addEv(f.date,'deadline','Formação: '+f.tema);
     });
-
-    /* Atribuições fixas semanais — toda quinta */
     var d=new Date(calYear,calMonth,1);
     while(d.getMonth()===calMonth){
       if(d.getDay()===4){
@@ -1292,25 +1330,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       d.setDate(d.getDate()+1);
     }
-
-    /* Atribuições fixas mensais — dia 10, 25 e fim do mês */
     var fim=new Date(calYear,calMonth+1,0).getDate();
     [[10,'Solicitação de material (1ª)'],[25,'Solicitação de material (2ª) · Bloco mensal'],[fim,'Fechamento do mês']].forEach(function(pair){
       var dd=pair[0]; var lbl=pair[1];
       if(dd>=1&&dd<=fim){
-        var ds=calYear+'-'+pad(calMonth+1)+'-'+pad(dd);
-        addEv(ds,'deadline',lbl);
+        var ds2=calYear+'-'+pad(calMonth+1)+'-'+pad(dd);
+        addEv(ds2,'deadline',lbl);
       }
     });
 
-    /* Renderiza dias */
     var firstDay=new Date(calYear,calMonth,1).getDay();
     var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
     var daysInPrev=new Date(calYear,calMonth,0).getDate();
-
     grid.innerHTML='';
     var totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
-
     var tooltip=ge('cal-tooltip');
 
     for(var i=0;i<totalCells;i++){
@@ -1319,14 +1352,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if(i<firstDay){ dayNum=daysInPrev-firstDay+i+1; monthOffset=-1; cell.classList.add('other-month'); }
       else if(i>=firstDay+daysInMonth){ dayNum=i-firstDay-daysInMonth+1; monthOffset=1; cell.classList.add('other-month'); }
       else { dayNum=i-firstDay+1; }
-
       var cellDate=new Date(calYear,calMonth+monthOffset,dayNum);
       var cellDS=toDS(cellDate);
       if(cellDS===todayStr) cell.classList.add('today');
-
       var numEl=document.createElement('div'); numEl.className='cal-day-num'; numEl.textContent=dayNum;
       cell.appendChild(numEl);
-
       var evs=evMap[cellDS]||[];
       if(evs.length){
         var dotsEl=document.createElement('div'); dotsEl.className='cal-dots';
@@ -1336,8 +1366,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if(evs.length>4){ var xdot=document.createElement('div'); xdot.className='cal-dot'; xdot.style.background='var(--ink4)'; dotsEl.appendChild(xdot); }
         cell.appendChild(dotsEl);
-
-        /* tooltip */
         (function(evList, el){
           el.style.cursor='pointer';
           el.addEventListener('mouseenter', function(e){
@@ -1365,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     dl('efac_dados.csv','data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv));toast('CSV exportado ✓','ok');
   };
   window.exportarJSON=function(){
-    dl('efac_backup.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify({exportadoEm:new Date().toISOString(),extras,formacoes,declaracoes,notas},null,2)));toast('Backup exportado ✓','ok');
+    dl('efac_backup.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify({exportadoEm:new Date().toISOString(),extras:extras,formacoes:formacoes,declaracoes:declaracoes,notas:notas},null,2)));toast('Backup exportado ✓','ok');
   };
   window.exportarRelatorio=function(){
     var now=new Date();var ds=now.getDate()+'/'+pad(now.getMonth()+1)+'/'+now.getFullYear();
@@ -1396,8 +1424,17 @@ document.addEventListener('DOMContentLoaded', function() {
   function initURL(){
     try{
       var saved=localStorage.getItem('efac_api_url')||'';
-      if(saved){ API_URL=saved; ge('api-url-input').value=saved; ge('cfg-banner').style.display='none'; setSyncStatus('syncing','Conectando...'); syncNow(); iniciarSyncAutomatico(); }
-      else { ge('cfg-banner').style.display=''; }
+      if(saved){
+        API_URL=saved;
+        var inp=ge('api-url-input'); if(inp) inp.value=saved;
+        ge('cfg-banner').style.display='none';
+        setSyncStatus('syncing','Conectando...');
+        syncNow();
+        iniciarSyncAutomatico();
+      } else {
+        ge('cfg-banner').style.display='';
+        setSyncStatus('nourl','URL não configurada');
+      }
     }catch(e){ ge('cfg-banner').style.display=''; }
   }
 
